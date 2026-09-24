@@ -343,3 +343,67 @@ button {
   padding-top: 6px;
   margin-top: 4px;
 }
+
+/* ================================================================= /
+/ PERSISTENT HEADS UP DISPLAY (HUD)                                 /
+/ ================================================================= */
+
+#persistent-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 36px;
+
+  --bg-color: var(--color-panel);
+  background: var(--scanline-pattern), var(--bg-color);
+  background-size:
+    100% 4px,
+    auto;
+
+  border-bottom: 2px solid var(--color-border-active);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  box-sizing: border-box;
+  z-index: 500;
+  user-select: none;
+}
+
+.hud-section {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.hud-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.hud-label {
+  color: var(--color-text-main);
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.hud-value {
+  color: #10b981; /* Emerald Green */
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+}
+
+.hud-value.deficit {
+  color: #ef4444; /* Danger Red */
+  text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+}
+
+.hud-value.rep {
+  color: #fbbf24; /* Luminous Gold */
+  text-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
+}
