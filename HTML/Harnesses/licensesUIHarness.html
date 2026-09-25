@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SADS - Harness: Contracts UI</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ================================================================= */
+      /* SPACE ARMS DEALER SIMULATOR - BASE THEME & DESIGN TOKENS          */
+      /* ================================================================= */
+
+      :root {
+        /* Color Palette */
+        --color-bg-base: #090d16;
+        --color-panel: #0f172a;
+        --color-border-subtle: #334155;
+        --color-border-active: #38bdf8;
+        --color-accent: #0284c7;
+        --color-text-main: #e2e8f0;
+        --color-text-muted: #94a3b8;
+
+        /* TEXTURED HARDWARE SCANLINES */
+        --scanline-pattern: linear-gradient(
+          rgba(18, 16, 16, 0) 50%,
+          rgba(0, 0, 0, 0.25) 50%
+        );
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
+        font-family: "Share Tech Mono", monospace;
+        background-color: var(--color-bg-base);
+        color: var(--color-text-main);
+        overflow: hidden;
+      }
+
+      /* ================================================================= */
+      /* LAYERS & OVERLAYS                                                 */
+      /* ================================================================= */
+      #game-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+      #ui-layer {
+        position: absolute;
+        top: 36px;
+        left: 0;
+        width: 100%;
+        height: calc(100% - 36px);
+        z-index: 10;
+        pointer-events: none;
+      }
+      #ui-layer > * {
+        pointer-events: auto;
+      }
+
+      .scanlines {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--scanline-pattern);
+        background-size: 100% 4px;
+        z-index: 9999;
+        pointer-events: none;
+        opacity: 0.8;
+      }
+
+      /* ================================================================= */
+      /* PERSISTENT HUD                                                    */
+      /* ================================================================= */
+      #persistent-hud {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 36px;
+        --bg-color: var(--color-panel);
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border-bottom: 2px solid var(--color-border-active);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 20px;
+        box-sizing: border-box;
+        z-index: 500;
+        user-select: none;
+      }
+      .hud-section {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+      }
+      .hud-stat {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .hud-label {
+        color: var(--color-text-main);
+        font-weight: bold;
+        letter-spacing: 1px;
+      }
+      .hud-value {
+        color: #10b981;
+        font-weight: bold;
+        font-size: 16px;
+        text-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
+      }
+      .hud-value.deficit {
+        color: #ef4444;
+        text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+      }
+      .hud-value.rep {
+        color: #fbbf24;
+        text-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
+      }
+
+      /* ================================================================= */
+      /* RETRO WINDOWS                                                     */
+      /* ================================================================= */
+      .retro-window {
+        position: absolute;
+        --bg-color: var(--color-panel);
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border: 2px solid var(--color-border-subtle);
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.8),
+          inset 0 0 15px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        z-index: 100;
+        user-select: none;
+      }
+      .retro-window.active {
+        border-color: var(--color-border-active);
+        box-shadow:
+          0 10px 30px rgba(0, 0, 0, 0.8),
+          0 0 10px rgba(56, 189, 248, 0.2),
+          inset 0 0 15px rgba(0, 0, 0, 0.5);
+        z-index: 101;
+      }
+      .retro-window.hidden {
+        display: none !important;
+      }
+      .retro-window-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        --bg-color: #1e293b;
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--color-border-subtle);
+        cursor: grab;
+      }
+      .retro-window-header:active {
+        cursor: grabbing;
+      }
+      .retro-window.active .retro-window-header {
+        --bg-color: #0369a1;
+        border-bottom-color: var(--color-border-active);
+      }
+      .retro-window-title {
+        font-size: 13px;
+        font-weight: bold;
+        color: #f8fafc;
+        letter-spacing: 1px;
+      }
+      .retro-window-close {
+        background: transparent;
+        border: none;
+        color: var(--color-text-muted);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+      }
+      .retro-window-close:hover {
+        color: #f8fafc;
+      }
+      .retro-window-body {
+        flex: 1;
+        padding: 10px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ================================================================= */
+      /* BUTTONS & SLOTS                                                   */
+      /* ================================================================= */
+      .retro-tab-btn {
+        --bg-color: #1e293b;
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border: 1px solid var(--color-border-subtle);
+        color: var(--color-text-muted);
+        padding: 6px 10px;
+        text-align: left;
+        font-size: 11px;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.1s ease;
+      }
+      .retro-tab-btn:hover:not(:disabled) {
+        --bg-color: #334155;
+        color: var(--color-text-main);
+      }
+      .retro-tab-btn.active {
+        --bg-color: #0284c7;
+        border-color: var(--color-border-active);
+        color: #ffffff;
+        font-weight: bold;
+      }
+
+      .retro-slot {
+        --bg-color: #090d16;
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border: 1px solid var(--color-border-subtle);
+        transition: border-color 0.1s ease;
+      }
+      .retro-slot:hover {
+        border-color: var(--color-border-active);
+        --bg-color: #0f172a;
+      }
+
+      .action-btn {
+        --bg-color: #10b981;
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        color: #090d16;
+        font-family: inherit;
+        font-weight: bold;
+        border: 2px solid #047857;
+        padding: 8px 12px;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.1s ease;
+      }
+      .action-btn:hover:not(:disabled) {
+        --bg-color: #34d399;
+      }
+      .action-btn:active:not(:disabled) {
+        transform: translateY(2px);
+      }
+      .action-btn.danger {
+        --bg-color: #ef4444;
+        border-color: #b91c1c;
+        color: white;
+      }
+      .action-btn.danger:hover:not(:disabled) {
+        --bg-color: #f87171;
+      }
+      .action-btn.warning {
+        --bg-color: #eab308;
+        border-color: #ca8a04;
+        color: #090d16;
+      }
+      .action-btn.warning:hover:not(:disabled) {
+        --bg-color: #facc15;
+      }
+
+      button {
+        outline: none;
+      }
+      :focus-visible {
+        outline: 2px solid var(--color-border-active);
+        outline-offset: -2px;
+        box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.5);
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.8);
+        border-radius: 2px;
+        border: 1px solid var(--color-border-subtle);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: var(--color-border-subtle);
+        border-radius: 2px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: var(--color-border-active);
+      }
+
+      .item-card {
+        --bg-color: #090d16;
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border: 1px solid var(--color-border-subtle);
+        padding: 10px;
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        transition: border-color 0.1s ease;
+      }
+      .item-card:hover {
+        border-color: var(--color-border-active);
+        --bg-color: #0f172a;
+      }
+      .item-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 4px;
+      }
+      .item-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2px;
+      }
+      .item-card-title {
+        font-weight: bold;
+        font-size: 13px;
+        color: var(--color-text-main);
+      }
+      .item-card-flavor {
+        font-size: 11px;
+        color: var(--color-text-muted);
+        font-style: italic;
+        line-height: 1.3;
+      }
+
+      #system-tray {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        display: flex;
+        gap: 10px;
+        --bg-color: var(--color-panel);
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        padding: 10px;
+        border: 1px solid var(--color-border-subtle);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.8);
+        z-index: 600;
+      }
+      #debug-overlay {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        --bg-color: rgba(15, 23, 42, 0.9);
+        background: var(--scanline-pattern), var(--bg-color);
+        background-size:
+          100% 4px,
+          auto;
+        border: 1px dashed var(--color-border-active);
+        padding: 10px;
+        width: 280px;
+        pointer-events: none;
+        z-index: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container"></div>
+    <div class="scanlines"></div>
+
+    <div id="persistent-hud">
+      <div class="hud-section">
+        <div class="hud-stat">
+          <span class="hud-label">FUNDS:</span>
+          <span class="hud-value" id="hud-credits">0c</span>
+        </div>
+        <div class="hud-stat">
+          <span class="hud-label">REP:</span>
+          <span class="hud-value rep" id="hud-rep">0</span>
+        </div>
+      </div>
+      <div class="hud-section">
+        <div class="hud-stat">
+          <span class="hud-label">SHIFT:</span>
+          <span class="hud-label" style="color: var(--color-text-main)"
+            >08:00 GTC</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <div id="ui-layer">
+      <div id="system-tray">
+        <button class="action-btn" id="btn-test-earn">+1000c</button>
+        <button class="action-btn danger" id="btn-test-spend">-1000c</button>
+        <button class="retro-tab-btn" id="btn-test-rep-add">+5 Rep</button>
+        <button class="retro-tab-btn" id="btn-test-rep-sub">-5 Rep</button>
+        <button class="action-btn warning" id="btn-open-tablet">
+          Open Tablet
+        </button>
+      </div>
+
+      <div id="debug-overlay">
+        <div
+          style="
+            color: var(--color-text-main);
+            font-weight: bold;
+            border-bottom: 1px solid var(--color-border-active);
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+          "
+        >
+          SYS_DEBUG_LOG
+        </div>
+        <div
+          id="debug-text"
+          style="font-size: 11px; color: var(--color-text-main)"
+        >
+          Awaiting inputs...
+        </div>
+      </div>
+
+      <div
+        id="window-tablet"
+        class="retro-window active"
+        style="width: 500px; height: 600px; top: 60px; left: 60px"
+      >
+        <div
+          class="retro-window-header"
+          tabindex="0"
+          aria-label="Drag Tablet Window"
+        >
+          <span class="retro-window-title">SYS_MGR_TABLET :: LICENSING</span>
+          <button class="retro-window-close" aria-label="Close Tablet">
+            X
+          </button>
+        </div>
+        <div class="retro-window-body" id="tablet-body">
+          <div
+            style="
+              text-align: center;
+              color: var(--color-text-muted);
+              margin-top: 20px;
+            "
+          >
+            Establishing secure handshake with Corporate DB...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const LICENSES_JSON = [
+        {
+          id: "lic_start_surplus",
+          name: "Scrap-Yard Ballistics Contract",
+          description:
+            "A handshake deal with local scavengers. Provides a steady stream of highly questionable, unregistered firearms.",
+          tier: 1,
+          baseCost: 0,
+          reqReputation: 0,
+        },
+        {
+          id: "lic_start_armor_melee",
+          name: "Scrap-Yard Armor & Melee",
+          description:
+            "Access to discarded industrial plating and rusted blunt instruments. Perfect for budget-conscious brawlers.",
+          tier: 1,
+          baseCost: 150,
+          reqReputation: 2,
+        },
+        {
+          id: "lic_start_tools",
+          name: "Salvage & Repair Tools (Nautilus)",
+          description:
+            "Entry-level industrial tools for tearing ships apart or strapping them back together.",
+          tier: 1,
+          baseCost: 350,
+          reqReputation: 5,
+        },
+        {
+          id: "lic_corp_aulin",
+          name: "Aulin NT Distributorship",
+          description:
+            "Official vendor license for Aulin's mass-produced, highly reliable kinetic weaponry and fitted attachments.",
+          tier: 2,
+          baseCost: 1200,
+          reqReputation: 15,
+        },
+        {
+          id: "lic_corp_vanguard",
+          name: "Vanguard Tactical License",
+          description:
+            "Heavy-duty ballistic repeaters, rotary guns, and aggressive close-quarters weapon attachments.",
+          tier: 2,
+          baseCost: 2200,
+          reqReputation: 25,
+        },
+        {
+          id: "lic_corp_stellaris",
+          name: "Stellaris Civilian Defense",
+          description:
+            "Sleek, civilian-market energy weapons, thermal batteries, and high-end aesthetic space suits.",
+          tier: 2,
+          baseCost: 2500,
+          reqReputation: 30,
+        },
+        {
+          id: "lic_pro_kodiak",
+          name: "Kodiak Arsenal",
+          description:
+            "Military-spec pulse rifles, plasma shrouds, and massively reinforced heavy armor suits.",
+          tier: 3,
+          baseCost: 6500,
+          reqReputation: 45,
+        },
+        {
+          id: "lic_edge_tessier",
+          name: "Tessier-Ashpool Verified Vendor",
+          description:
+            "Exclusive access to ridiculously expensive, cutting-edge smart-flechette weapons and neural-link optics.",
+          tier: 4,
+          baseCost: 25000,
+          reqReputation: 85,
+        },
+      ];
+
+      class Debugger {
+        static log(message, color = "var(--color-text-main)") {
+          const debugEl = document.getElementById("debug-text");
+          if (debugEl) {
+            const timestamp = new Date().toLocaleTimeString("en-US", {
+              hour12: false,
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
+            const newEntry = `<div style="color: ${color}; margin-bottom: 3px; font-family: monospace;">[${timestamp}] ${message}</div>`;
+            debugEl.innerHTML = newEntry + debugEl.innerHTML;
+
+            const lines = debugEl.innerHTML.split("</div>");
+            if (lines.length > 7) {
+              debugEl.innerHTML = lines.slice(0, 6).join("</div>") + "</div>";
+            }
+          }
+        }
+      }
+
+      class PlayerState {
+        constructor() {
+          this.credits = 1500;
+          this.globalReputation = 2;
+          this.factionReputation = {
+            scavengers: 0,
+            mercenaries: 0,
+            explorers: 0,
+          };
+          this.activeLicenses = new Set();
+          this.listeners = [];
+        }
+
+        addCredits(amount) {
+          this.credits += amount;
+          Debugger.log(
+            `Earned ${amount}c. Balance: ${this.credits}c`,
+            "#10b981",
+          );
+          this.notifyListeners();
+        }
+
+        spendCredits(amount) {
+          this.credits -= amount;
+          if (this.credits < 0) {
+            Debugger.log(`Spent ${amount}c. ACCOUNT IN DEFICIT!`, "#ef4444");
+          } else {
+            Debugger.log(
+              `Spent ${amount}c. Balance: ${this.credits}c`,
+              "#ef4444",
+            );
+          }
+          this.notifyListeners();
+          return true;
+        }
+
+        addReputation(amount, factionId = null) {
+          this.globalReputation += amount;
+          Debugger.log(
+            `Reputation +${amount} (Total: ${this.globalReputation})`,
+            "#38bdf8",
+          );
+          if (factionId && this.factionReputation[factionId] !== undefined) {
+            this.factionReputation[factionId] += amount;
+          }
+          this.notifyListeners();
+        }
+
+        subReputation(amount, factionId = null) {
+          this.globalReputation -= amount;
+          Debugger.log(
+            `Reputation -${amount} (Total: ${this.globalReputation})`,
+            "#ef4444",
+          );
+          this.notifyListeners();
+        }
+
+        signLicense(licenseId) {
+          this.activeLicenses.add(licenseId);
+          this.notifyListeners();
+        }
+
+        subscribe(callback) {
+          this.listeners.push(callback);
+          callback(this);
+        }
+
+        notifyListeners() {
+          this.listeners.forEach((callback) => callback(this));
+        }
+      }
+
+      class HUDController {
+        constructor(playerState) {
+          this.creditsEl = document.getElementById("hud-credits");
+          this.repEl = document.getElementById("hud-rep");
+          playerState.subscribe((state) => this.render(state));
+        }
+
+        render(state) {
+          this.creditsEl.innerText = `${state.credits.toLocaleString()}c`;
+          if (state.credits < 0) {
+            this.creditsEl.classList.add("deficit");
+          } else {
+            this.creditsEl.classList.remove("deficit");
+          }
+          // Removed 'Lv.' prefix as requested
+          this.repEl.innerText = state.globalReputation;
+        }
+      }
+
+      class SupplierLicense {
+        constructor(data) {
+          this.id = data.id;
+          this.name = data.name;
+          this.description = data.description;
+          this.tier = data.tier;
+          this.baseCost = data.baseCost;
+          this.reqReputation = data.reqReputation;
+        }
+
+        isUnlocked(playerState) {
+          return playerState.globalReputation >= this.reqReputation;
+        }
+
+        canAfford(playerState) {
+          return playerState.credits >= this.baseCost;
+        }
+      }
+
+      class ContractRenderer {
+        static generateHTML(licenses, playerState) {
+          let html = `
+                    <div style="display: flex; gap: 4px; margin-bottom: 10px;">
+                        <button class="retro-tab-btn">Shift</button>
+                        <button class="retro-tab-btn">Inventory DB</button>
+                        <button class="retro-tab-btn active">Contracts</button>
+                    </div>
+                    <div class="retro-slot custom-scrollbar" style="padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto;">
+                `;
+
+          if (!licenses || licenses.length === 0) {
+            html += `<div style="color: var(--color-text-muted); text-align: center; padding: 20px;">No contracts available.</div>`;
+          } else {
+            licenses.forEach((license) => {
+              const isUnlocked = license.isUnlocked(playerState);
+              const canAfford = license.canAfford(playerState);
+              const isOwned =
+                playerState.activeLicenses &&
+                playerState.activeLicenses.has(license.id);
+
+              // --- REFINED BUTTON LOGIC ---
+              let actionButtonHTML = "";
+              if (isOwned) {
+                actionButtonHTML = `<button class="retro-tab-btn" disabled style="opacity: 0.6; cursor: not-allowed; width: 100%; text-align: center;">[ CONTRACT ACTIVE ]</button>`;
+              } else if (!isUnlocked && !canAfford) {
+                actionButtonHTML = `<button class="retro-tab-btn" disabled style="opacity: 0.5; cursor: not-allowed; width: 100%; text-align: center; color: #ef4444;">LOCKED & INSUFFICIENT FUNDS</button>`;
+              } else if (!isUnlocked) {
+                actionButtonHTML = `<button class="retro-tab-btn" disabled style="opacity: 0.5; cursor: not-allowed; width: 100%; text-align: center; color: var(--color-text-muted);">LOCKED</button>`;
+              } else if (!canAfford) {
+                actionButtonHTML = `<button class="action-btn danger" disabled style="opacity: 0.7; cursor: not-allowed; width: 100%; font-size: 11px;">INSUFFICIENT FUNDS</button>`;
+              } else {
+                actionButtonHTML = `<button class="action-btn" data-license-id="${license.id}" style="width: 100%; font-size: 12px;">SIGN CONTRACT (${license.baseCost.toLocaleString()}c)</button>`;
+              }
+
+              html += `
+                            <div class="item-card">
+                                <div class="item-details">
+                                    <div class="item-card-header">
+                                        <span class="item-card-title">${license.name}</span>
+                                        <span style="color: var(--color-text-main); font-size: 11px; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 2px;">Tier ${license.tier}</span>
+                                    </div>
+                                    <div class="item-card-flavor">"${license.description}"</div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-muted); margin-top: 6px; border-top: 1px dashed var(--color-border-subtle); padding-top: 6px;">
+                                        <span>Req Rep: ${license.reqReputation} Pts</span>
+                                        <span style="color: var(--color-text-main); font-weight: bold;">Cost: ${license.baseCost.toLocaleString()}c</span>
+                                    </div>
+                                    <div style="margin-top: 8px;">
+                                        ${actionButtonHTML}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+            });
+          }
+
+          html += `</div>`;
+          return html;
+        }
+      }
+
+      class WindowManager {
+        constructor() {
+          this.windows = new Map();
+          this.draggedWindow = null;
+          this.currentMaxZ = 100;
+          this.bindGlobalEvents();
+        }
+
+        registerWindow(winEl, headerEl) {
+          const winObj = {
+            element: winEl,
+            header: headerEl,
+            isDragging: false,
+            offsetX: 0,
+            offsetY: 0,
+          };
+          this.windows.set(winEl.id, winObj);
+          winEl.addEventListener("mousedown", () => this.focusWindow(winEl));
+          headerEl.addEventListener("mousedown", (e) => {
+            if (e.target.closest(".retro-window-close")) return;
+            winObj.isDragging = true;
+            this.draggedWindow = winObj;
+            const rect = winEl.getBoundingClientRect();
+            winObj.offsetX = e.clientX - rect.left;
+            winObj.offsetY = e.clientY - rect.top;
+            this.focusWindow(winEl);
+          });
+        }
+
+        focusWindow(winEl) {
+          this.windows.forEach((w) => w.element.classList.remove("active"));
+          winEl.classList.add("active");
+          this.currentMaxZ++;
+          winEl.style.zIndex = this.currentMaxZ;
+        }
+
+        bindGlobalEvents() {
+          document.addEventListener("mousemove", (e) => {
+            if (!this.draggedWindow) return;
+            let newX = Math.max(
+              0,
+              Math.min(
+                window.innerWidth - 100,
+                e.clientX - this.draggedWindow.offsetX,
+              ),
+            );
+            let newY = Math.max(
+              0,
+              Math.min(
+                window.innerHeight - 50,
+                e.clientY - this.draggedWindow.offsetY,
+              ),
+            );
+            this.draggedWindow.element.style.left = `${newX}px`;
+            this.draggedWindow.element.style.top = `${newY}px`;
+          });
+          document.addEventListener("mouseup", () => {
+            if (this.draggedWindow) this.draggedWindow = null;
+          });
+        }
+      }
+
+      const playerState = new PlayerState();
+      const hud = new HUDController(playerState);
+      const windowManager = new WindowManager();
+
+      const tabletEl = document.getElementById("window-tablet");
+      windowManager.registerWindow(
+        tabletEl,
+        tabletEl.querySelector(".retro-window-header"),
+      );
+      tabletEl
+        .querySelector(".retro-window-close")
+        .addEventListener("click", () => tabletEl.classList.add("hidden"));
+
+      let licensesList = LICENSES_JSON.map((data) => new SupplierLicense(data));
+
+      function renderTabletContent() {
+        const bodyEl = document.getElementById("tablet-body");
+        bodyEl.innerHTML = ContractRenderer.generateHTML(
+          licensesList,
+          playerState,
+        );
+
+        bodyEl.querySelectorAll("button[data-license-id]").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const licenseId = e.target.getAttribute("data-license-id");
+            const license = licensesList.find((l) => l.id === licenseId);
+
+            if (
+              license &&
+              license.canAfford(playerState) &&
+              license.isUnlocked(playerState)
+            ) {
+              playerState.spendCredits(license.baseCost);
+              playerState.signLicense(licenseId);
+              Debugger.log(`Signed contract: ${license.name}!`, "#fbbf24");
+            }
+          });
+        });
+      }
+
+      playerState.subscribe(() => {
+        if (licensesList.length > 0) renderTabletContent();
+      });
+
+      document
+        .getElementById("btn-test-earn")
+        .addEventListener("click", () => playerState.addCredits(1000));
+      document
+        .getElementById("btn-test-spend")
+        .addEventListener("click", () => playerState.spendCredits(1000));
+      document
+        .getElementById("btn-test-rep-add")
+        .addEventListener("click", () => playerState.addReputation(5));
+      document
+        .getElementById("btn-test-rep-sub")
+        .addEventListener("click", () => playerState.subReputation(5));
+      document
+        .getElementById("btn-open-tablet")
+        .addEventListener("click", () => {
+          tabletEl.classList.remove("hidden");
+          windowManager.focusWindow(tabletEl);
+        });
+
+      class BackgroundScene extends Phaser.Scene {
+        constructor() {
+          super({ key: "BackgroundScene" });
+        }
+        create() {
+          this.add.grid(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            this.cameras.main.width,
+            this.cameras.main.height,
+            32,
+            32,
+            0x090d16,
+            1,
+            0x1e293b,
+            1,
+          );
+        }
+      }
+
+      const game = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: "game-container",
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: "#090d16",
+        scene: [BackgroundScene],
+        scale: {
+          mode: Phaser.Scale.RESIZE,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+      });
+      renderTabletContent();
+    </script>
+  </body>
+</html>
