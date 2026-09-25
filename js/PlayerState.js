@@ -5,7 +5,7 @@ export class PlayerState {
     this.credits = 1500;
     this.globalReputation = 2;
 
-    // --- NEW: Faction Reputation Tracking ---
+    // Factions strictly adhere to the MVP Tag Taxonomy. No Military.
     this.factionReputation = {
       scavengers: 0,
       mercenaries: 0,
@@ -48,7 +48,6 @@ export class PlayerState {
       "#38bdf8",
     );
 
-    // If a specific faction is specified, boost their standing too
     if (factionId && this.factionReputation[factionId] !== undefined) {
       this.factionReputation[factionId] += amount;
       Debugger.log(
@@ -78,9 +77,14 @@ export class PlayerState {
     this.notifyListeners();
   }
 
+  signLicense(licenseId) {
+    this.activeLicenses.add(licenseId);
+    this.notifyListeners();
+  }
+
   subscribe(callback) {
     this.listeners.push(callback);
-    callback(this); // Fire immediately on subscribe to initialize UI
+    callback(this);
   }
 
   notifyListeners() {
