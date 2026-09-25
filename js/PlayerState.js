@@ -4,12 +4,15 @@ export class PlayerState {
   constructor() {
     this.credits = 1500;
     this.globalReputation = 2;
+
+    // --- NEW: Faction Reputation Tracking ---
     this.factionReputation = {
       scavengers: 0,
       mercenaries: 0,
       explorers: 0,
     };
 
+    this.activeLicenses = new Set(); // Stores IDs of signed licenses
     this.listeners = [];
   }
 
